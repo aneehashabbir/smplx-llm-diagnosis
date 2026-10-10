@@ -1,0 +1,16 @@
+{
+  "P01": {
+    "subject_gender": "female",
+    "model_gender": "male",
+    "original_width_px": 1200,
+    "fit_width_px": 1784,
+    "clothing": "loose long tunic, trousers"
+  },
+  "P02": {
+    "subject_gender": "male",
+    "model_gender": "male",
+    "original_width_px": 3024,
+    "fit_width_px": 1784,
+    "clothing": "short-sleeve t-shirt, jeans"
+  }
+}

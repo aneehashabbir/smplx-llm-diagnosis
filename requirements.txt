@@ -1,0 +1,16 @@
+# Core (measurement and analysis)
+numpy
+scipy
+scikit-learn
+matplotlib
+Pillow
+
+# 2D keypoints for own photos
+mediapipe
+
+# LLM diagnosis
+zai-sdk        # Zhipu GLM models (glm-4v-flash, glm-5.3-flash)
+zhipuai        # older Zhipu library, used as a fallback
+openai         # DeepSeek uses an OpenAI-compatible API
+
+# SMPLify-X itself is installed separately, see README (Setup, step 3)
