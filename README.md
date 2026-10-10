@@ -5,6 +5,8 @@
 
 Author: Aneeha Shabbir · Supervisor: Prof. Wang Yu
 
+
+**Interactive demo (prototype):** https://aneehashabbir.github.io/smplx-llm-diagnosis/demo.html
 ---
 
 ## What this project does
