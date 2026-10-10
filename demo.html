@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SMPL-X Diagnostic Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style id="app-style">
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --warn: #f0883e;
+    --danger: #f85149;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); background: #0d1117; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 100;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .04em;
+  }
+  .logo span { color: var(--text-muted); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(88,166,255,.12);
+    color: var(--accent);
+    border: 1px solid rgba(88,166,255,.3);
+  }
+
+  /* ── Layout ── */
+  main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Subject Tabs ── */
+  .tab-row {
+    display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .tab {
+    font-family: var(--mono); font-size: 12px;
+    padding: 6px 16px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-muted); transition: all .15s;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active { background: rgba(88,166,255,.12); border-color: var(--accent); color: var(--accent); }
+
+  /* ── Metric Cards ── */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .card.ok::before { background: var(--accent2); }
+  .card.warn::before { background: var(--warn); }
+  .card.danger::before { background: var(--danger); }
+  .card-label { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .card-predicted { font-size: 28px; font-weight: 600; font-family: var(--mono); }
+  .card-gt { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .card-error { font-family: var(--mono); font-size: 12px; margin-top: 8px; }
+  .ok .card-error { color: var(--accent2); }
+  .warn .card-error { color: var(--warn); }
+  .danger .card-error { color: var(--danger); }
+  .error-bar-bg { height: 4px; background: var(--border); border-radius: 2px; margin-top: 10px; }
+  .error-bar { height: 4px; border-radius: 2px; transition: width .6s ease; }
+  .ok .error-bar { background: var(--accent2); }
+  .warn .error-bar { background: var(--warn); }
+  .danger .error-bar { background: var(--danger); }
+
+  /* ── Chart Area ── */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px;
+  }
+  .chart-title { font-size: 13px; font-weight: 500; margin-bottom: 20px; color: var(--text-muted); }
+  .chart-title strong { color: var(--text); }
+  canvas { width: 100% !important; }
+
+  /* ── LLM Diagnosis ── */
+  .diagnosis-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; margin-bottom: 32px;
+  }
+  .diagnosis-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  }
+  .llm-chip {
+    font-family: var(--mono); font-size: 11px; padding: 3px 10px;
+    border-radius: 12px; background: rgba(63,185,80,.12);
+    color: var(--accent2); border: 1px solid rgba(63,185,80,.3);
+  }
+  .typing-area {
+    font-family: var(--mono); font-size: 13px; line-height: 1.8;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px;
+    min-height: 120px; position: relative;
+  }
+  .typing-area .cursor {
+    display: inline-block; width: 8px; height: 14px;
+    background: var(--accent2); vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .diag-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .diag-tag {
+    font-family: var(--mono); font-size: 11px; padding: 3px 10px;
+    border-radius: 4px; background: var(--surface2); color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .diag-tag.active { background: rgba(240,136,62,.1); color: var(--warn); border-color: rgba(240,136,62,.3); }
+
+  /* ── Subject Info ── */
+  .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+  .info-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px;
+  }
+  .info-box h3 { font-size: 13px; font-weight: 500; margin-bottom: 14px; color: var(--text-muted); }
+  .kv { display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .kv:last-child { border: none; }
+  .kv .k { color: var(--text-muted); font-family: var(--mono); font-size: 12px; }
+  .kv .v { font-weight: 500; }
+  .v.ok { color: var(--accent2); }
+  .v.danger { color: var(--danger); }
+
+  /* ── Pipeline Viz ── */
+  .pipeline { display: flex; align-items: center; gap: 0; margin-bottom: 32px; overflow-x: auto; padding-bottom: 8px; }
+  .pipe-step {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 18px; min-width: 130px; text-align: center;
+    flex-shrink: 0;
+  }
+  .pipe-step .icon { font-size: 22px; margin-bottom: 6px; }
+  .pipe-step .label { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .pipe-step.done { border-color: var(--accent2); }
+  .pipe-step.done .label { color: var(--accent2); }
+  .pipe-step.active { border-color: var(--accent); }
+  .pipe-step.active .label { color: var(--accent); }
+  .pipe-arrow { color: var(--border); font-size: 20px; padding: 0 6px; flex-shrink: 0; }
+
+  /* ── Controls ── */
+  .controls { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--mono); font-size: 12px; padding: 8px 20px;
+    border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); transition: all .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { opacity: .85; }
+
+  select {
+    font-family: var(--mono); font-size: 12px; padding: 8px 14px;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer;
+  }
+
+  .threshold-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+  input[type=range] { accent-color: var(--accent); }
+
+  footer { border-top: 1px solid var(--border); padding: 20px 32px; text-align: center;
+           font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+
+  .overview { display:grid; grid-template-columns: repeat(5, 1fr); gap:16px; margin-bottom:32px; }
+  .ov { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px 20px; }
+  .ov .n { font-family:var(--mono); font-size:24px; font-weight:600; }
+  .ov .l { font-size:12px; color:var(--text-muted); }
+  .ov.ok .n { color:var(--accent2); } .ov.warn .n { color:var(--warn); }
+  .pipe-step.todo { border-style: dashed; opacity:.6; }
+  .src-note { font-size:12px; color:var(--text-muted); margin-top:10px; }
+  .typing-area { white-space: pre-wrap; }
+  @media (max-width: 900px) { .cards, .overview { grid-template-columns: 1fr 1fr; } .chart-grid, .info-row { grid-template-columns: 1fr; } main { padding:16px; } }
+
+  /* ── Editor ── */
+  .editor { position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%); z-index: 200;
+    background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 22px calc(20px + env(safe-area-inset-bottom, 0px));
+    box-shadow: -12px 0 40px rgba(0,0,0,.45); }
+  .editor[hidden] { display: none; }
+  .editor h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .editor h4 { font-size: 13px; font-weight: 600; margin: 22px 0 10px; color: var(--accent); }
+  .editor .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .ed-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .ed-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .ed-field span, .ed-grid span { font-size: 12px; color: var(--text-muted); }
+  .editor input[type=text], .editor input[type=number], .editor textarea, .editor select {
+    font-family: var(--sans); font-size: 13px; padding: 7px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); width: 100%; }
+  .editor textarea { min-height: 64px; resize: vertical; line-height: 1.5; }
+  .editor input.bad { border-color: var(--danger); }
+  .editor input:focus-visible, .editor textarea:focus-visible, .editor select:focus-visible, .btn:focus-visible, .tab:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px; }
+  .ed-grid { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 6px 8px; align-items: center; }
+  .ed-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; background: var(--surface2); }
+  .ed-pipe { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .ed-pipe input[type=text] { flex: 1; }
+  .ed-actions { position: sticky; bottom: calc(-20px - env(safe-area-inset-bottom, 0px)); background: var(--surface);
+    padding: 14px 0 6px; margin-top: 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .ed-status { font-size: 12px; color: var(--text-muted); width: 100%; }
+  .ed-status.danger { color: var(--danger); } .ed-status.ok { color: var(--accent2); }
+  .btn.small { padding: 5px 12px; font-size: 11px; }
+  .btn.danger { border-color: rgba(248,81,73,.5); color: var(--danger); }
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 32px; }
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+  .cmp-table th { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text-muted); text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .cmp-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12px; }
+  .cmp-table tr:last-child td { border-bottom: none; }
+  .cmp-table td:first-child { font-family: var(--sans); font-size: 13px; color: var(--text); }
+  .cmp-note { font-size: 12px; color: var(--text-muted); padding: 0 16px 14px; }
+  .preview-banner { background: rgba(240,136,62,.12); border: 1px solid rgba(240,136,62,.35); color: var(--warn);
+    font-size: 12px; padding: 8px 14px; border-radius: 6px; margin-bottom: 20px; }
+  .preview-banner[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="application/json" id="dash-data">{
+ "pipeline": [
+  {
+   "icon": "📸",
+   "label": "Photo Capture",
+   "done": true
+  },
+  {
+   "icon": "🦴",
+   "label": "MediaPipe Keypoints",
+   "done": true
+  },
+  {
+   "icon": "🧍",
+   "label": "SMPLify-X Mesh",
+   "done": true
+  },
+  {
+   "icon": "📐",
+   "label": "Measure Extract",
+   "done": true
+  },
+  {
+   "icon": "🤖",
+   "label": "LLM Diagnosis (GLM)",
+   "done": true
+  },
+  {
+   "icon": "⚖️",
+   "label": "DeepSeek Compare",
+   "done": true
+  },
+  {
+   "icon": "📊",
+   "label": "AGORA Baseline",
+   "done": false
+  },
+  {
+   "icon": "🗿",
+   "label": "Mannequin Subject",
+   "done": false
+  }
+ ],
+ "subjects": [
+  {
+   "id": "S01",
+   "gender": "Male",
+   "modelGender": "male",
+   "clothing": "Fitted long-sleeve shirt, loose sweatpants",
+   "photo": "3024 → 1784 px",
+   "m": {
+    "shoulder": {
+     "pred": 44.2,
+     "gt": 47.0
+    },
+    "chest": {
+     "pred": 96.0,
+     "gt": 95.0
+    },
+    "waist": {
+     "pred": 81.4,
+     "gt": 81.0
+    },
+    "hip": {
+     "pred": 90.7,
+     "gt": 104.0
+    }
+   },
+   "note": "Hip too small despite loose sweatpants. DeepSeek blamed the sweatpants in 2 of 3 runs, breaking the sign rule; the validator caught it.",
+   "summary": "The hip measurement is underestimated due to depth ambiguity in the frontal photo.",
+   "diag": [
+    {
+     "k": "hip",
+     "cat": "DEPTH_AMBIGUITY",
+     "conf": "high",
+     "textOnly": "DEPTH_AMBIGUITY",
+     "exp": "The picture doesn't fully show the depth of the hips, making it hard to measure their true size accurately.",
+     "fix": "Take another photo where both sides of the hips are visible.",
+     "runsImage": "3/3",
+     "runsText": "3/3",
+     "ds": "CLOTHING_VOLUME",
+     "runsDS": "2/3"
+    }
+   ]
+  },
+  {
+   "id": "S02",
+   "gender": "Not recorded",
+   "modelGender": "male",
+   "clothing": "Not recorded",
+   "photo": "835 → 1784 px (upscaled)",
+   "m": {
+    "shoulder": {
+     "pred": 45.6,
+     "gt": 48.0
+    },
+    "chest": {
+     "pred": 86.6,
+     "gt": 82.0
+    },
+    "waist": {
+     "pred": 72.3,
+     "gt": 74.0
+    },
+    "hip": {
+     "pred": 89.3,
+     "gt": 92.0
+    }
+   },
+   "note": "All four measurements within 10%.",
+   "summary": "All four measurements are within 10% of the tape measure, so this person's body measurements from the photo can be trusted.",
+   "diag": []
+  },
+  {
+   "id": "S03",
+   "gender": "Female",
+   "modelGender": "male",
+   "clothing": "Shalwar kameez (loose traditional garment)",
+   "photo": "1096 → 1784 px (upscaled)",
+   "m": {
+    "shoulder": {
+     "pred": 46.6,
+     "gt": 40.0
+    },
+    "chest": {
+     "pred": 90.5,
+     "gt": 77.0
+    },
+    "waist": {
+     "pred": 77.1,
+     "gt": 62.0
+    },
+    "hip": {
+     "pred": 89.8,
+     "gt": 83.0
+    }
+   },
+   "note": "Female subject fitted with male body model, loose clothing. Highest errors.",
+   "summary": "Measurements were overestimated due to using a male model instead of a female model and wearing loose-fitting clothing.",
+   "diag": [
+    {
+     "k": "shoulder",
+     "cat": "MODEL_MISMATCH",
+     "conf": "high",
+     "textOnly": "MODEL_MISMATCH",
+     "exp": "The male model doesn't accurately represent the female subject's shoulders, leading to an overestimation of shoulder width.",
+     "fix": "Use the female body model.",
+     "runsImage": "3/3",
+     "runsText": "3/3",
+     "ds": "MODEL_MISMATCH",
+     "runsDS": "3/3"
+    },
+    {
+     "k": "chest",
+     "cat": "CLOTHING_VOLUME",
+     "conf": "high",
+     "textOnly": "CLOTHING_VOLUME",
+     "exp": "The dress adds extra volume, making the fitted mesh appear larger than the actual chest circumference.",
+     "fix": "Wear a form-fitting top for more accurate measurements.",
+     "runsImage": "3/3",
+     "runsText": "3/3",
+     "ds": "CLOTHING_VOLUME",
+     "runsDS": "3/3"
+    },
+    {
+     "k": "waist",
+     "cat": "CLOTHING_VOLUME",
+     "conf": "high",
+     "textOnly": "POSE_OR_KEYPOINT",
+     "exp": "The dress adds extra volume, making the fitted mesh appear larger than the actual waist circumference.",
+     "fix": "Wear a form-fitting top for more accurate measurements.",
+     "runsImage": "3/3",
+     "runsText": "3/3",
+     "ds": "CLOTHING_VOLUME",
+     "runsDS": "3/3"
+    }
+   ]
+  },
+  {
+   "id": "S05",
+   "gender": "Male",
+   "modelGender": "male",
+   "clothing": "Grey short-sleeve t-shirt, black trousers",
+   "photo": "1784 px (no resize)",
+   "m": {
+    "shoulder": {
+     "pred": 50.0,
+     "gt": 47.0
+    },
+    "chest": {
+     "pred": 76.3,
+     "gt": 87.0
+    },
+    "waist": {
+     "pred": 73.2,
+     "gt": 74.0
+    },
+    "hip": {
+     "pred": 86.7,
+     "gt": 84.0
+    }
+   },
+   "note": "Chest too small — single front view cannot show chest depth.",
+   "summary": "The chest circumference is underestimated due to a lack of depth information in the frontal photo. A side view photo would help improve accuracy.",
+   "diag": [
+    {
+     "k": "chest",
+     "cat": "DEPTH_AMBIGUITY",
+     "conf": "high",
+     "textOnly": "DEPTH_AMBIGUITY",
+     "exp": "The chest circumference is underestimated because the frontal photo lacks the necessary depth information to accurately measure the chest.",
+     "fix": "Take another photo where the entire chest area is visible and captured from a slightly angled side view to provide better depth information.",
+     "runsImage": "3/3",
+     "runsText": "3/3",
+     "ds": "DEPTH_AMBIGUITY",
+     "runsDS": "3/3"
+    }
+   ]
+  },
+  {
+   "id": "S06",
+   "gender": "Male",
+   "modelGender": "male",
+   "clothing": "Green short-sleeve t-shirt, black trousers",
+   "photo": "797 → 1784 px (upscaled)",
+   "m": {
+    "shoulder": {
+     "pred": 44.8,
+     "gt": 45.0
+    },
+    "chest": {
+     "pred": 87.0,
+     "gt": 89.0
+    },
+    "waist": {
+     "pred": 70.9,
+     "gt": 76.0
+    },
+    "hip": {
+     "pred": 86.6,
+     "gt": 91.0
+    }
+   },
+   "note": "All four measurements within 10%.",
+   "summary": "All four measurements are within 10% of the tape measure, so this person's body measurements from the photo can be trusted.",
+   "diag": []
+  },
+  {
+   "id": "S07",
+   "gender": "Male",
+   "modelGender": "male",
+   "clothing": "Navy short-sleeve t-shirt (untucked), black joggers",
+   "photo": "1784 px (no resize)",
+   "m": {
+    "shoulder": {
+     "pred": 43.4,
+     "gt": 40.0
+    },
+    "chest": {
+     "pred": 88.9,
+     "gt": 81.0
+    },
+    "waist": {
+     "pred": 73.4,
+     "gt": 66.0
+    },
+    "hip": {
+     "pred": 86.5,
+     "gt": 86.0
+    }
+   },
+   "note": "Untucked T-shirt hides the waist. Photo check confirmed GLM's diagnosis. Without the photo, GLM gave 3 different answers in 3 runs.",
+   "summary": "The waist circumference is overestimated due to the loose fit of the t-shirt worn by the subject.",
+   "diag": [
+    {
+     "k": "waist",
+     "cat": "CLOTHING_VOLUME",
+     "conf": "high",
+     "textOnly": "INCONSISTENT",
+     "exp": "The t-shirt is too large and loose around the waist, causing the fitted mesh to overestimate the waist circumference.",
+     "fix": "Wear a tighter-fitting shirt that conforms closely to the body.",
+     "runsImage": "3/3",
+     "runsText": "",
+     "ds": "CLOTHING_VOLUME",
+     "runsDS": "3/3"
+    }
+   ]
+  }
+ ],
+ "diagNote": "Real model output from diagnoses_GLM_vs_DeepSeek/report.md (prompt v2, 3 runs per condition). Diagnosis used a fixed 10% tolerance; the slider above only changes the charts.",
+ "models": [
+  {
+   "condition": "GLM-4V-Flash, with photo",
+   "validity": "12/12",
+   "violations": "0/18 (0%)",
+   "consistency": "6/6",
+   "agreeRun": "18/18 (100%)",
+   "agreeModal": "6/6"
+  },
+  {
+   "condition": "GLM-4V-Flash, text only",
+   "validity": "12/12",
+   "violations": "0/18 (0%)",
+   "consistency": "5/6",
+   "agreeRun": "12/18 (66.7%)",
+   "agreeModal": "4/6"
+  },
+  {
+   "condition": "DeepSeek-V3, text only",
+   "validity": "12/12",
+   "violations": "2/18 (11.1%)",
+   "consistency": "5/6",
+   "agreeRun": "16/18 (88.9%)",
+   "agreeModal": "5/6"
+  }
+ ]
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script id="app-script">
+// ── Page source (the page rebuilds itself from these when you save) ──
+const CHART_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+const HEAD = '<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<title>SMPL-X Diagnostic Dashboard</title>\n<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">';
+function buildPage(data) {
+  const style = document.getElementById('app-style').textContent;
+  const script = document.getElementById('app-script').textContent;
+  const json = JSON.stringify(data, null, 1).replace(/</g, '\\u003c');
+  return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' + HEAD + '\n<style id="app-style">' + style + '</' + 'style>\n</head>\n<body>\n<div id="root"></div>\n' +
+    '<script type="application/json" id="dash-data">' + json + '</' + 'script>\n' +
+    '<script src="' + CHART_SRC + '"></' + 'script>\n' +
+    '<script id="app-script">' + script + '</' + 'script>\n</body>\n</html>\n';
+}
+
+const SHELL = `
+<header>
+  <div class="logo">SMPL-X <span>/ Anthropometric Diagnostic Dashboard</span></div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <span class="badge">Hohai University · 2026</span>
+    <span class="badge" id="nBadge"></span>
+    <button class="btn small" id="editBtn" hidden>✎ Edit</button>
+  </div>
+</header>
+<main>
+  <div class="preview-banner" style="margin-bottom:20px">Prototype demo: the results shown are from an earlier version of the pipeline and are being updated. Final results will be published here.</div>
+  <div class="preview-banner" id="previewBanner" hidden>Preview — your changes are not saved yet. Click “Save & publish” in the editor.</div>
+  <div class="section-label" style="margin-top:0">Research Pipeline</div>
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="section-label" id="overviewLabel"></div>
+  <div class="overview" id="overview"></div>
+
+  <div class="section-label">Subject Explorer</div>
+  <div class="controls"><div class="tab-row" id="subjectTabs"></div></div>
+  <div class="cards" id="metricCards"></div>
+
+  <div class="chart-grid">
+    <div class="chart-box">
+      <div class="chart-title"><strong>Predicted vs Ground Truth</strong> — all measurements (cm)</div>
+      <canvas id="barChart" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title"><strong>Signed Error (%)</strong> — above 0 = too large, below 0 = too small</div>
+      <canvas id="errorChart" height="200"></canvas>
+      <div class="threshold-row" style="margin-top:14px">
+        <label for="threshSlider">Threshold:</label>
+        <input type="range" id="threshSlider" min="1" max="30" value="10">
+        <span id="threshVal">10%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-row">
+    <div class="info-box" id="subjectMeta"></div>
+    <div class="info-box" id="errorSummary"></div>
+  </div>
+
+  <div class="section-label">LLM Semantic Diagnosis (GLM-4V-Flash with photo · compared with GLM and DeepSeek without photo)</div>
+  <div class="diagnosis-box">
+    <div class="diagnosis-header">
+      <span class="llm-chip">● GLM-4V-Flash + DeepSeek-V3</span>
+      <span style="font-size:12px;color:var(--text-muted)">Tolerance checked by code → only out-of-tolerance items diagnosed</span>
+      <button class="btn primary" id="diagBtn" style="margin-left:auto">▶ Show Diagnosis</button>
+    </div>
+    <div class="typing-area" id="diagnosisText"></div>
+    <div class="diag-tags" id="diagTags"></div>
+    <div class="src-note" id="diagNote"></div>
+  </div>
+
+  <div class="section-label">Model Comparison (3 runs per condition, 6 diagnosed measurements)</div>
+  <div class="table-wrap" id="modelTable"></div>
+
+  <div class="section-label">Cross-Subject Error Comparison</div>
+  <div class="chart-box" style="margin-bottom:32px">
+    <div class="chart-title"><strong>Signed Error (%) by subject</strong> — clothing makes things too large, single-view depth makes them too small</div>
+    <canvas id="crossChart" height="150"></canvas>
+  </div>
+</main>
+<footer>
+  Aneeha Shabbir · LX20240507001 · Hohai University · School of Computer Science &amp; Software Engineering · Supervisor: Prof. Wang Yu
+</footer>
+<aside class="editor" id="editor" hidden aria-label="Edit dashboard"></aside>`;
+
+// ── Data ──
+const DATA = JSON.parse(document.getElementById('dash-data').textContent);
+let VIEW = DATA;               // what the dashboard shows (DATA, or the unsaved draft while editing)
+const KEYS = ['shoulder','chest','waist','hip'];
+const NAMES = {shoulder:'Shoulder Width', chest:'Chest Circumference', waist:'Waist Circumference', hip:'Hip Circumference'};
+const SHORT = {shoulder:'Shoulder', chest:'Chest', waist:'Waist', hip:'Hip'};
+const CATS = ['CLOTHING_VOLUME','DEPTH_AMBIGUITY','MODEL_MISMATCH','POSE_OR_KEYPOINT','SCALE_OR_RESOLUTION','LANDMARK_DEFINITION','FITTING_FAILURE','GT_SUSPECT','UNDETERMINED'];
+const GENDERS = ['Male','Female','Not recorded','Mannequin','Synthetic (AGORA)'];
+const TABTAG = {'Male':'M','Female':'F','Not recorded':'?','Mannequin':'Mannequin','Synthetic (AGORA)':'AGORA'};
+const DIAG_TOL = 10;
+const ALT_CATS = [...CATS, 'INCONSISTENT'];
+
+let currentSubject = 0, threshold = 10;
+let barChartInst, errorChartInst, crossChartInst, diagTimer = null;
+
+// ── Helpers ──
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const valid = x => x && Number.isFinite(x.pred) && Number.isFinite(x.gt) && x.gt > 0;
+const signed = (p,g) => (p-g)/g*100;
+const relErr = (p,g) => Math.abs(signed(p,g));
+const errClass = r => r <= threshold ? 'ok' : r <= 20 ? 'warn' : 'danger';
+const errLabel = r => r <= threshold ? `✓ Within ${threshold}%` : r <= 20 ? '⚠ Above threshold' : '✗ High error';
+const colorFor = r => r <= threshold ? 'rgba(63,185,80,0.8)' : r <= 20 ? 'rgba(240,136,62,0.8)' : 'rgba(248,81,73,0.8)';
+const fmt = x => (x>0?'+':'') + x.toFixed(1);
+const subjects = () => VIEW.subjects;
+
+const defOpts = () => ({ responsive:true, animation:{duration:300},
+  plugins:{ legend:{ labels:{ color:'#8b949e', font:{family:'IBM Plex Mono',size:11}, filter: i => i.text !== '' } } },
+  scales:{ x:{ticks:{color:'#8b949e',font:{family:'IBM Plex Mono',size:11}}, grid:{color:'#21262d'}},
+           y:{ticks:{color:'#8b949e',font:{family:'IBM Plex Mono',size:11}}, grid:{color:'#21262d'}} } });
+const threshLines = n => [
+  { type:'line', label:`±${threshold}% threshold`, data:Array(n).fill(threshold), borderColor:'rgba(230,237,243,0.35)', borderDash:[4,4], borderWidth:1, pointRadius:0 },
+  { type:'line', label:'', data:Array(n).fill(-threshold), borderColor:'rgba(230,237,243,0.35)', borderDash:[4,4], borderWidth:1, pointRadius:0 } ];
+
+// ── Render ──
+function renderAll() {
+  if (currentSubject >= subjects().length) currentSubject = Math.max(0, subjects().length - 1);
+  renderPipeline(); renderOverview(); renderTabs();
+  const s = subjects()[currentSubject];
+  if (s) { renderCards(s); renderInfo(s); } else { ['metricCards','subjectMeta','errorSummary'].forEach(id => document.getElementById(id).innerHTML = ''); }
+  renderCharts(s); resetDiagnosis(); renderModels();
+  document.getElementById('diagNote').textContent = VIEW.diagNote || '';
+  document.getElementById('previewBanner').hidden = VIEW === DATA;
+}
+
+function renderPipeline() {
+  document.getElementById('pipeline').innerHTML = VIEW.pipeline.map((p,i) =>
+    (i ? '<div class="pipe-arrow">→</div>' : '') +
+    `<div class="pipe-step ${p.done ? 'done' : 'todo'}"><div class="icon">${esc(p.icon)}</div><div class="label">${esc(p.label)}</div></div>`).join('');
+}
+
+function renderOverview() {
+  const n = subjects().length;
+  document.getElementById('nBadge').textContent = `${n} subject${n===1?'':'s'} · real data`;
+  document.getElementById('overviewLabel').textContent = `All Subjects — Mean Absolute Error (n = ${n})`;
+  let within = 0, total = 0;
+  const cards = KEYS.map(k => {
+    const xs = subjects().map(s => s.m[k]).filter(valid);
+    xs.forEach(x => { total++; if (relErr(x.pred, x.gt) <= 10) within++; });
+    if (!xs.length) return `<div class="ov"><div class="n">—</div><div class="l">${SHORT[k]}</div></div>`;
+    const mean = xs.reduce((a,x) => a + relErr(x.pred,x.gt), 0) / xs.length;
+    const mae = xs.reduce((a,x) => a + Math.abs(x.pred-x.gt), 0) / xs.length;
+    return `<div class="ov ${mean <= 10 ? 'ok':'warn'}"><div class="n">${mean.toFixed(1)}%</div><div class="l">${SHORT[k]} · MAE ${mae.toFixed(1)} cm</div></div>`;
+  });
+  cards.push(`<div class="ov ok"><div class="n">${within}/${total}</div><div class="l">measurements within 10%</div></div>`);
+  document.getElementById('overview').innerHTML = cards.join('');
+}
+
+function renderTabs() {
+  document.getElementById('subjectTabs').innerHTML = subjects().map((s,i) =>
+    `<button class="tab ${i===currentSubject?'active':''}" data-tab="${i}">${esc(s.id)} · ${esc(TABTAG[s.gender] || '?')}</button>`).join('');
+}
+
+function renderCards(s) {
+  document.getElementById('metricCards').innerHTML = KEYS.map(k => {
+    const x = s.m[k];
+    if (!valid(x)) return `<div class="card"><div class="card-label">${NAMES[k]}</div><div class="card-predicted">—</div><div class="card-gt">No value yet</div></div>`;
+    const r = relErr(x.pred,x.gt), cls = errClass(r);
+    return `<div class="card ${cls}">
+      <div class="card-label">${NAMES[k]}</div>
+      <div class="card-predicted">${x.pred}<small style="font-size:14px;color:var(--text-muted)"> cm</small></div>
+      <div class="card-gt">Tape measure: ${x.gt} cm</div>
+      <div class="card-error">${errLabel(r)} · ${fmt(x.pred-x.gt)} cm (${fmt(signed(x.pred,x.gt))}%) ${x.pred > x.gt ? 'too large' : 'too small'}</div>
+      <div class="error-bar-bg"><div class="error-bar" style="width:${Math.min(r/30*100,100)}%"></div></div>
+    </div>`; }).join('');
+}
+
+function renderInfo(s) {
+  document.getElementById('subjectMeta').innerHTML = `
+    <h3>Subject Metadata</h3>
+    <div class="kv"><span class="k">subject_id</span><span class="v">${esc(s.id)}</span></div>
+    <div class="kv"><span class="k">gender</span><span class="v">${esc(s.gender)}</span></div>
+    <div class="kv"><span class="k">body_model_gender</span><span class="v ${s.gender==='Female'&&s.modelGender==='male'?'danger':''}">${esc(s.modelGender)}</span></div>
+    <div class="kv"><span class="k">clothing</span><span class="v" style="text-align:right;max-width:60%">${esc(s.clothing)}</span></div>
+    <div class="kv"><span class="k">photo_width</span><span class="v">${esc(s.photo)}</span></div>
+    <div class="kv"><span class="k">mesh_source</span><span class="v">SMPLify-X → .obj</span></div>
+    <div class="kv"><span class="k">note</span><span class="v" style="font-size:12px;text-align:right;max-width:60%">${esc(s.note)}</span></div>`;
+  const ks = KEYS.filter(k => valid(s.m[k]));
+  const rows = KEYS.map(k => { const x = s.m[k];
+    if (!valid(x)) return `<div class="kv"><span class="k">${k}</span><span class="v">—</span></div>`;
+    return `<div class="kv"><span class="k">${k}</span><span class="v ${errClass(relErr(x.pred,x.gt))}">${fmt(signed(x.pred,x.gt))}% (${fmt(x.pred-x.gt)} cm)</span></div>`; }).join('');
+  let extra = '';
+  if (ks.length) {
+    const overall = ks.reduce((a,k) => a + relErr(s.m[k].pred, s.m[k].gt), 0) / ks.length;
+    const worst = ks.reduce((a,b) => relErr(s.m[a].pred,s.m[a].gt) > relErr(s.m[b].pred,s.m[b].gt) ? a : b);
+    const wr = relErr(s.m[worst].pred, s.m[worst].gt);
+    extra = `<div class="kv"><span class="k">mean_abs_relative_error</span><span class="v ${errClass(overall)}">${overall.toFixed(1)}%</span></div>
+      <div class="kv"><span class="k">worst_measurement</span><span class="v ${errClass(wr)}">${worst} (${wr.toFixed(1)}%)</span></div>`;
+  }
+  document.getElementById('errorSummary').innerHTML = `<h3>Error Summary</h3>${rows}${extra}`;
+}
+
+function renderCharts(s) {
+  if (typeof Chart === 'undefined') return;
+  const labels = KEYS.map(k => SHORT[k]);
+  [barChartInst, errorChartInst, crossChartInst].forEach(c => c && c.destroy());
+  barChartInst = errorChartInst = null;
+  if (s) {
+    const val = k => valid(s.m[k]) ? s.m[k] : null;
+    const errs = KEYS.map(k => val(k) ? +signed(s.m[k].pred, s.m[k].gt).toFixed(1) : null);
+    const o1 = defOpts(); o1.scales.y.title = {display:true, text:'cm', color:'#8b949e'};
+    barChartInst = new Chart(document.getElementById('barChart'), { type:'bar',
+      data:{ labels, datasets:[
+        { label:'Tape measure', data:KEYS.map(k => val(k) ? s.m[k].gt : null), backgroundColor:'rgba(88,166,255,0.7)', borderRadius:4 },
+        { label:'Predicted (SMPL-X)', data:KEYS.map(k => val(k) ? s.m[k].pred : null), backgroundColor:'rgba(63,185,80,0.7)', borderRadius:4 } ] },
+      options:o1 });
+    errorChartInst = new Chart(document.getElementById('errorChart'), { type:'bar',
+      data:{ labels, datasets:[
+        { label:'Signed error (%)', data:errs, backgroundColor:errs.map(e => colorFor(Math.abs(e ?? 0))), borderRadius:4 },
+        ...threshLines(4) ] },
+      options:defOpts() });
+  }
+  const palette = ['rgba(88,166,255,0.8)','rgba(63,185,80,0.8)','rgba(240,136,62,0.8)','rgba(188,140,255,0.8)'];
+  const o3 = defOpts(); o3.scales.y.title = {display:true, text:'signed error (%)', color:'#8b949e'};
+  crossChartInst = new Chart(document.getElementById('crossChart'), { type:'bar',
+    data:{ labels:subjects().map(x => x.id), datasets:[
+      ...KEYS.map((k,i) => ({ label:SHORT[k], data:subjects().map(x => valid(x.m[k]) ? +signed(x.m[k].pred, x.m[k].gt).toFixed(1) : null), backgroundColor:palette[i], borderRadius:3 })),
+      ...threshLines(subjects().length) ] },
+    options:o3 });
+}
+
+// ── Model comparison ──
+const MODEL_COLS = [['condition','Condition'],['validity','Valid replies'],['violations','Sign-rule violations'],['consistency','Same answer in all runs'],['agreeRun','Agreement per run'],['agreeModal','Agreement (majority answer)']];
+function renderModels() {
+  const rows = VIEW.models || [];
+  document.getElementById('modelTable').innerHTML = rows.length ? `<table class="cmp-table">
+    <thead><tr>${MODEL_COLS.map(c => `<th scope="col">${c[1]}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${MODEL_COLS.map(c => `<td>${esc(r[c[0]])}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <div class="cmp-note">Agreement is measured against reference causes set from the subject metadata and photo inspection.</div>`
+    : '<div class="cmp-note" style="padding-top:14px">No comparison yet.</div>';
+}
+
+// ── Diagnosis ──
+function renderTags(active) {
+  document.getElementById('diagTags').innerHTML = CATS.map(c => `<span class="diag-tag ${active.includes(c)?'active':''}">${c}</span>`).join('');
+}
+function resetDiagnosis() {
+  clearTimeout(diagTimer); diagTimer = null;
+  document.getElementById('diagnosisText').innerHTML = '<span style="color:var(--text-muted)">Click Show Diagnosis to see GLM\'s explanation for this subject...</span>';
+  renderTags([]);
+}
+function diagnosisText(s) {
+  const circ = ['①','②','③','④','⑤','⑥','⑦','⑧'];
+  let t = `OVERALL\n   ${s.summary || '(no summary yet)'}\n`;
+  (s.diag || []).forEach((d,i) => {
+    const x = s.m[d.k];
+    const head = valid(x) ? ` — ${Math.abs(x.pred-x.gt).toFixed(1)} cm ${x.pred>x.gt?'too large':'too small'} (${fmt(signed(x.pred,x.gt))}%)` : '';
+    t += `\n${circ[i] || (i+1)+'.'} ${SHORT[d.k].toUpperCase()}${head}\n`;
+    t += `   ${d.exp}\n   Fix: ${d.fix}\n   Cause: ${d.cat} (confidence ${d.conf})${d.runsImage ? ` · same answer in ${d.runsImage} runs` : ''}\n`;
+    const under = valid(x) && x.pred < x.gt;
+    const alt = (name, c, r) => !c ? '' : c === 'INCONSISTENT' ? `${name}: no consistent answer` :
+      `${name}: ${c}${r ? ` (${r})` : ''}${c === d.cat ? ' ✓' : ''}${c === 'CLOTHING_VOLUME' && under ? ' ⚠ breaks sign rule' : ''}`;
+    const others = [alt('GLM', d.textOnly, d.runsText), alt('DeepSeek', d.ds, d.runsDS)].filter(Boolean);
+    if (others.length) t += `   Without photo → ${others.join(' · ')}\n`;
+  });
+  const ok = KEYS.filter(k => valid(s.m[k]) && relErr(s.m[k].pred, s.m[k].gt) <= DIAG_TOL);
+  if (ok.length) t += `\n✓ ${ok.map(k => SHORT[k]).join(', ')} — within ${DIAG_TOL}% of the tape measure (set by rule, not by the model)`;
+  return t;
+}
+function runDiagnosis() {
+  const s = subjects()[currentSubject]; if (!s) return;
+  resetDiagnosis();
+  const box = document.getElementById('diagnosisText'); box.innerHTML = '';
+  const fullText = diagnosisText(s);
+  renderTags((s.diag || []).map(d => d.cat));
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { box.textContent = fullText; return; }
+  const cursor = document.createElement('span'); cursor.className = 'cursor'; box.appendChild(cursor);
+  let i = 0;
+  (function type() {
+    if (i < fullText.length) { box.insertBefore(document.createTextNode(fullText[i]), cursor); i++; diagTimer = setTimeout(type, fullText[i-1]==='\n' ? 30 : 8); }
+    else { cursor.remove(); diagTimer = null; }
+  })();
+}
+
+// ── Editor (only shown to people who can edit this page) ──
+let ART = null, LOCAL = false, draft = null, editIdx = 0, confirmDelete = false;
+const clone = o => JSON.parse(JSON.stringify(o));
+const opt = (list, cur) => list.map(v => `<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(v)}</option>`).join('');
+
+function openEditor() {
+  draft = clone(DATA); editIdx = currentSubject; VIEW = draft; confirmDelete = false;
+  document.getElementById('editor').hidden = false; renderEditor(); renderAll();
+}
+function closeEditor() {
+  draft = null; VIEW = DATA; document.getElementById('editor').hidden = true; renderAll();
+}
+function renderEditor(msg, cls) {
+  const s = draft.subjects[editIdx];
+  const subj = s ? `
+    <div class="ed-field"><span>Subject ID</span><input type="text" data-p="s:id" value="${esc(s.id)}"></div>
+    <div class="ed-row">
+      <label class="ed-field" style="flex:1"><span>Gender / type</span><select data-p="s:gender">${opt(GENDERS, s.gender)}</select></label>
+      <label class="ed-field" style="flex:1"><span>Body model used</span><select data-p="s:modelGender">${opt(['male','female','neutral'], s.modelGender)}</select></label>
+    </div>
+    <label class="ed-field"><span>Clothing</span><input type="text" data-p="s:clothing" value="${esc(s.clothing)}"></label>
+    <label class="ed-field"><span>Photo width</span><input type="text" data-p="s:photo" value="${esc(s.photo)}"></label>
+    <label class="ed-field"><span>Note</span><textarea data-p="s:note">${esc(s.note)}</textarea></label>
+
+    <h4>Measurements (cm)</h4>
+    <div class="ed-grid"><span></span><span>From photo</span><span>Tape measure</span>
+      ${KEYS.map(k => `<span>${SHORT[k]}</span>
+        <input type="number" step="0.1" data-p="m:${k}:pred" value="${s.m[k].pred ?? ''}" aria-label="${SHORT[k]} from photo">
+        <input type="number" step="0.1" data-p="m:${k}:gt" value="${s.m[k].gt ?? ''}" aria-label="${SHORT[k]} tape measure">`).join('')}
+    </div>
+
+    <h4>LLM diagnosis</h4>
+    <label class="ed-field"><span>Overall summary</span><textarea data-p="s:summary">${esc(s.summary)}</textarea></label>
+    ${(s.diag || []).map((d,i) => `<div class="ed-card">
+      <div class="ed-row">
+        <label class="ed-field" style="flex:1"><span>Measurement</span><select data-p="d:${i}:k">${KEYS.map(k => `<option value="${k}" ${k===d.k?'selected':''}>${SHORT[k]}</option>`).join('')}</select></label>
+        <label class="ed-field" style="flex:1"><span>Confidence</span><select data-p="d:${i}:conf">${opt(['low','medium','high'], d.conf)}</select></label>
+      </div>
+      <div class="ed-row">
+        <label class="ed-field" style="flex:1"><span>Cause (with photo)</span><select data-p="d:${i}:cat">${opt(CATS, d.cat)}</select></label>
+        <label class="ed-field" style="flex:1"><span>Runs agreeing (photo)</span><input type="text" data-p="d:${i}:runsImage" value="${esc(d.runsImage)}" placeholder="3/3"></label>
+      </div>
+      <div class="ed-row">
+        <label class="ed-field" style="flex:2"><span>GLM, no photo</span><select data-p="d:${i}:textOnly"><option value="">—</option>${opt(ALT_CATS, d.textOnly)}</select></label>
+        <label class="ed-field" style="flex:1"><span>Runs</span><input type="text" data-p="d:${i}:runsText" value="${esc(d.runsText)}" placeholder="3/3"></label>
+      </div>
+      <div class="ed-row">
+        <label class="ed-field" style="flex:2"><span>DeepSeek, no photo</span><select data-p="d:${i}:ds"><option value="">—</option>${opt(ALT_CATS, d.ds)}</select></label>
+        <label class="ed-field" style="flex:1"><span>Runs</span><input type="text" data-p="d:${i}:runsDS" value="${esc(d.runsDS)}" placeholder="3/3"></label>
+      </div>
+      <label class="ed-field"><span>Explanation</span><textarea data-p="d:${i}:exp">${esc(d.exp)}</textarea></label>
+      <label class="ed-field"><span>Fix</span><input type="text" data-p="d:${i}:fix" value="${esc(d.fix)}"></label>
+      <button class="btn small danger" data-act="del-diag" data-i="${i}">Remove this diagnosis</button>
+    </div>`).join('')}
+    <button class="btn small" data-act="add-diag">+ Add diagnosis</button>
+
+    <div class="ed-row" style="margin-top:18px"><button class="btn small danger" data-act="del-subject">${confirmDelete ? 'Click again to delete ' + esc(s.id) : 'Delete this subject'}</button></div>
+  ` : '<p class="hint">No subjects yet.</p>';
+
+  document.getElementById('editor').innerHTML = `
+    <h2>Edit dashboard</h2>
+    <p class="hint">${LOCAL ? 'You are editing a downloaded copy. Save gives you a new HTML file with your changes; use it to replace this one.' : 'Changes show on the page right away as a preview. Nothing is saved until you click Save & publish.'}</p>
+    <div class="ed-row">
+      <select data-act="pick" aria-label="Subject to edit" style="flex:1">${draft.subjects.map((x,i) => `<option value="${i}" ${i===editIdx?'selected':''}>${esc(x.id)}</option>`).join('')}</select>
+      <button class="btn small" data-act="add-subject">+ Add subject</button>
+    </div>
+    ${subj}
+    <h4>Model comparison</h4>
+    ${(draft.models || []).map((r,i) => `<div class="ed-card">
+      ${MODEL_COLS.map(c => `<label class="ed-field"><span>${c[1]}</span><input type="text" data-p="x:${i}:${c[0]}" value="${esc(r[c[0]])}"></label>`).join('')}
+      <button class="btn small danger" data-act="del-model" data-i="${i}">Remove this row</button>
+    </div>`).join('')}
+    <button class="btn small" data-act="add-model">+ Add row</button>
+    <label class="ed-field" style="margin-top:14px"><span>Note under the diagnosis</span><textarea data-p="n:diagNote">${esc(draft.diagNote)}</textarea></label>
+
+    <h4>Research pipeline</h4>
+    ${draft.pipeline.map((p,i) => `<div class="ed-pipe">
+      <input type="checkbox" data-p="p:${i}:done" ${p.done?'checked':''} aria-label="${esc(p.label)} done">
+      <input type="text" data-p="p:${i}:label" value="${esc(p.label)}" aria-label="Step name">
+    </div>`).join('')}
+    <div class="ed-actions">
+      <button class="btn primary" data-act="save">${LOCAL ? 'Save & download' : 'Save & publish'}</button>
+      <button class="btn" data-act="cancel">Cancel</button>
+      <div class="ed-status ${cls || ''}" id="edStatus" role="status">${esc(msg || '')}</div>
+    </div>`;
+}
+function setStatus(msg, cls) { const el = document.getElementById('edStatus'); if (el) { el.textContent = msg; el.className = 'ed-status ' + (cls || ''); } }
+
+function onEditorInput(e) {
+  const el = e.target, p = el.dataset.p;
+  if (!p || !draft) return;
+  const [kind, a, b] = p.split(':');
+  const s = draft.subjects[editIdx];
+  if (kind === 's') { s[a] = el.value; if (a === 'id') { const o = document.querySelector(`[data-act="pick"] option[value="${editIdx}"]`); if (o) o.textContent = el.value; } }
+  else if (kind === 'm') {
+    const v = el.value.trim() === '' ? null : Number(el.value);
+    const ok = v === null || (Number.isFinite(v) && v > 0);
+    el.classList.toggle('bad', !ok);
+    if (ok) s.m[a][b] = v;
+  }
+  else if (kind === 'd') s.diag[+a][b] = el.value;
+  else if (kind === 'x') draft.models[+a][b] = el.value;
+  else if (kind === 'n') draft[a] = el.value;
+  else if (kind === 'p') { if (b === 'done') draft.pipeline[+a].done = el.checked; else draft.pipeline[+a].label = el.value; }
+  currentSubject = editIdx;
+  renderAll();
+}
+function onEditorClick(e) {
+  const btn = e.target.closest('[data-act]'); if (!btn || btn.tagName === 'SELECT') return;
+  const act = btn.dataset.act, s = draft.subjects[editIdx];
+  if (act !== 'del-subject') confirmDelete = false;
+  if (act === 'add-subject') {
+    const blank = {pred:null, gt:null};
+    draft.subjects.push({ id:'S' + String(draft.subjects.length + 1).padStart(2,'0') + '-new', gender:'Male', modelGender:'male', clothing:'', photo:'', note:'', summary:'',
+      m:{ shoulder:{...blank}, chest:{...blank}, waist:{...blank}, hip:{...blank} }, diag:[] });
+    editIdx = draft.subjects.length - 1;
+  } else if (act === 'del-subject') {
+    if (!confirmDelete) { confirmDelete = true; }
+    else { draft.subjects.splice(editIdx, 1); editIdx = Math.max(0, editIdx - 1); confirmDelete = false; }
+  } else if (act === 'add-diag') {
+    s.diag = s.diag || []; s.diag.push({ k:'waist', cat:'UNDETERMINED', conf:'medium', runsImage:'', textOnly:'', runsText:'', ds:'', runsDS:'', exp:'', fix:'' });
+  } else if (act === 'add-model') {
+    draft.models = draft.models || []; draft.models.push(Object.fromEntries(MODEL_COLS.map(c => [c[0], ''])));
+  } else if (act === 'del-model') {
+    draft.models.splice(+btn.dataset.i, 1);
+  } else if (act === 'del-diag') {
+    s.diag.splice(+btn.dataset.i, 1);
+  } else if (act === 'cancel') { closeEditor(); return; }
+  else if (act === 'save') { save(); return; }
+  currentSubject = editIdx; renderEditor(); renderAll();
+}
+function onEditorChange(e) {
+  if (e.target.dataset.act === 'pick') { editIdx = +e.target.value; confirmDelete = false; currentSubject = editIdx; renderEditor(); renderAll(); }
+}
+function validate(d) {
+  const ids = new Set();
+  for (const s of d.subjects) {
+    if (!s.id.trim()) return 'Every subject needs an ID.';
+    if (ids.has(s.id.trim())) return `Two subjects are both called “${s.id}”.`;
+    ids.add(s.id.trim());
+    for (const k of KEYS) { const x = s.m[k];
+      if ((x.pred === null) !== (x.gt === null)) return `${s.id}: ${SHORT[k]} needs both a photo value and a tape value (or neither).`; }
+  }
+  return null;
+}
+async function save() {
+  const problem = validate(draft);
+  if (problem) { setStatus(problem, 'danger'); return; }
+  draft.subjects.forEach(s => s.id = s.id.trim());
+  if (LOCAL) {
+    const blob = new Blob([buildPage(draft)], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'smplx_dashboard.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    DATA.subjects = clone(draft.subjects); DATA.pipeline = clone(draft.pipeline);
+    closeEditor();
+    return;
+  }
+  if (!ART) { setStatus('Saving is not available in this view.', 'danger'); return; }
+  setStatus('Saving…');
+  try {
+    await ART.publish(buildPage(draft));
+    setStatus('Saved. The page is reloading with your changes.', 'ok');
+  } catch (err) {
+    const c = err && err.code;
+    if (c === 'conflict') setStatus('A newer version was saved somewhere else, so the page is reloading to it. Your unsaved edits were not applied.', 'danger');
+    else if (['not_writer','not_granted','consent_required','capability_disabled','capability_removed','not_declared'].includes(c)) {
+      setStatus('This view is read-only, so changes cannot be saved here.', 'danger');
+      document.getElementById('editBtn').hidden = true; ART = null;
+    }
+    else if (c === 'rate_limited') setStatus('Saved too many times in a short while. Wait a minute, then click Save again.', 'danger');
+    else if (c === 'too_large') setStatus('The page is too large to save.', 'danger');
+    else setStatus('Could not save (' + (c || 'unknown error') + '). Please try again.', 'danger');
+  }
+}
+
+// ── Start ──
+document.getElementById('root').innerHTML = SHELL;
+document.getElementById('subjectTabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { currentSubject = +t.dataset.tab; renderAll(); } });
+document.getElementById('threshSlider').addEventListener('input', e => { threshold = +e.target.value; document.getElementById('threshVal').textContent = threshold + '%'; renderAll(); });
+document.getElementById('diagBtn').addEventListener('click', runDiagnosis);
+document.getElementById('editBtn').addEventListener('click', () => document.getElementById('editor').hidden ? openEditor() : closeEditor());
+const edEl = document.getElementById('editor');
+edEl.addEventListener('input', onEditorInput);
+edEl.addEventListener('click', onEditorClick);
+edEl.addEventListener('change', onEditorChange);
+renderAll();
+if (typeof Chart === 'undefined') window.addEventListener('load', () => renderCharts(subjects()[currentSubject]));
+
+(async () => {
+  if (!window.claude || typeof window.claude.use !== 'function') {
+    // Editing only on my own computer (opened as a file), never on the public website.
+    if (location.protocol === 'file:') { LOCAL = true; document.getElementById('editBtn').hidden = false; }
+    return;
+  }
+  const [art, user] = await Promise.all([window.claude.use('artifact'), window.claude.use('user')]);
+  if (!art) return;
+  const canEdit = user ? await user.canEdit() : true;
+  if (!canEdit) return;
+  ART = art;
+  document.getElementById('editBtn').hidden = false;
+})();
+</script>
+</body>
+</html>
